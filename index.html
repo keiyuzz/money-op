@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Op. Financeira</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0d0d10;
+  --surface:  #131318;
+  --surface2: #18181f;
+  --surface3: #1e1e28;
+  --border:   rgba(255,255,255,0.055);
+  --border2:  rgba(255,255,255,0.09);
+  --purple:   #9b8cff;
+  --purple2:  #7c6ef0;
+  --purple-a: rgba(155,140,255,0.08);
+  --purple-a2:rgba(155,140,255,0.14);
+  --green:    #6ee7a0;
+  --green-a:  rgba(110,231,160,0.1);
+  --red:      #ff7b7b;
+  --red-a:    rgba(255,123,123,0.1);
+  --amber:    #f5c06a;
+  --amber-a:  rgba(245,192,106,0.1);
+  --text:     #eeeef5;
+  --text2:    #8888aa;
+  --text3:    #44445a;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Outfit', sans-serif;
+  --r:        16px;
+  --r2:       24px;
+}
+
+html { font-size: 16px; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── scrollbar ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+
+/* ── layout ── */
+.wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 3rem 2rem 5rem;
+}
+
+/* ── fade in ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card, .metric, header { animation: fadeUp 0.45s ease both; }
+.metric:nth-child(1) { animation-delay: .05s }
+.metric:nth-child(2) { animation-delay: .10s }
+.metric:nth-child(3) { animation-delay: .15s }
+.metric:nth-child(4) { animation-delay: .20s }
+.metric:nth-child(5) { animation-delay: .25s }
+.metric:nth-child(6) { animation-delay: .30s }
+.metric:nth-child(7) { animation-delay: .35s }
+.metric:nth-child(8) { animation-delay: .40s }
+
+/* ── header ── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3rem;
+}
+.brand { display: flex; flex-direction: column; gap: 3px; }
+.brand-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--purple);
+}
+.brand-name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  color: var(--text);
+}
+
+.header-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.live-pill {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: blink 2.4s ease infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 60%{opacity:.3} }
+.date-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+.hdr-btns { display: flex; gap: 6px; }
+.hdr-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: color .2s, border-color .2s;
+}
+.hdr-btn:hover { color: var(--purple); border-color: var(--purple2); }
+.hdr-btn.del:hover { color: var(--red); border-color: var(--red); }
+
+/* ── insight bar ── */
+#insight {
+  display: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--purple);
+  background: var(--purple-a);
+  border: 1px solid rgba(155,140,255,.18);
+  border-radius: var(--r);
+  padding: 12px 18px;
+  margin-bottom: 1.75rem;
+}
+#insight.show { display: block; }
+
+/* ── alert ── */
+#alert {
+  display: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--red);
+  background: var(--red-a);
+  border: 1px solid rgba(255,123,123,.2);
+  border-radius: var(--r);
+  padding: 11px 16px;
+  margin-bottom: 1.75rem;
+}
+#alert.show { display: block; }
+
+/* ── webhook config ── */
+#wh-cfg {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r2);
+  padding: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+#wh-cfg.open { display: block; }
+.cfg-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+.cfg-url {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 11px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--purple);
+}
+.cfg-copy {
+  margin-left: auto;
+  background: none; border: none;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text3); cursor: pointer;
+  transition: color .2s;
+}
+.cfg-copy:hover { color: var(--purple); }
+.cfg-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  line-height: 1.8;
+  margin-top: 10px;
+}
+
+/* ── metrics ── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 800px) { .metrics { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 480px) { .metrics { grid-template-columns: 1fr 1fr; } }
+
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 1.5rem 1.5rem 1.25rem;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition: border-color .25s, transform .2s;
+}
+.metric:hover { border-color: var(--border2); transform: translateY(-1px); }
+
+.metric-accent {
+  position: absolute;
+  top: 0; left: 1.5rem;
+  width: 32px; height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--accent, var(--purple));
+  opacity: .7;
+}
+
+.metric-lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+.metric-val {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 5px;
+  font-variant-numeric: tabular-nums;
+  transition: color .3s;
+}
+.metric-val.g { color: var(--green); }
+.metric-val.r { color: var(--red); }
+.metric-val.p { color: var(--purple); }
+.metric-val.a { color: var(--amber); }
+.metric-hint {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+}
+
+/* ── 2-col grid ── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.grid21 { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; margin-bottom: 12px; }
+@media (max-width: 720px) { .grid2, .grid21 { grid-template-columns: 1fr; } }
+
+/* ── card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 1.75rem;
+  transition: border-color .25s;
+}
+.card:hover { border-color: var(--border2); }
+.card-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.card-ttl {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.card-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  color: var(--text3);
+}
+
+/* ── gauge ── */
+.gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.gauge-ring { position: relative; width: 150px; height: 150px; }
+.gauge-ring svg { width: 150px; height: 150px; transform: rotate(-90deg); }
+.gauge-center {
+  position: absolute; top:50%; left:50%;
+  transform: translate(-50%,-50%);
+  text-align: center; pointer-events: none;
+}
+.gauge-pct {
+  font-size: 28px; font-weight: 600;
+  letter-spacing: -.03em;
+  transition: color .4s;
+}
+.gauge-sub { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 2px; }
+.gauge-legend {
+  display: flex; gap: 20px;
+  font-family: var(--mono); font-size: 10px; color: var(--text2);
+}
+.gauge-legend span { display: flex; align-items: center; gap: 6px; }
+.gl { width: 8px; height: 2px; border-radius: 1px; }
+
+/* ── indicator bars ── */
+.bars { display: flex; flex-direction: column; gap: 18px; }
+.bar-row {}
+.bar-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+.bar-name { font-family: var(--mono); font-size: 10px; color: var(--text2); letter-spacing: .04em; }
+.bar-val { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text); }
+.bar-track {
+  height: 4px;
+  background: var(--surface3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%; border-radius: 2px;
+  transition: width .6s cubic-bezier(.4,0,.2,1), background .4s;
+}
+
+/* ── form ── */
+.form { display: flex; flex-direction: column; gap: 12px; }
+.frow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.frow.full { grid-template-columns: 1fr; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.flbl {
+  font-family: var(--mono);
+  font-size: 9px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--text3);
+}
+.finput, .fsel {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 10px 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .2s;
+  -webkit-appearance: none;
+  width: 100%;
+}
+.finput::placeholder { color: var(--text3); }
+.finput:focus, .fsel:focus { border-color: var(--purple2); }
+.fsel option { background: #18181f; }
+.btn-add {
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 500;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(155,140,255,.3);
+  background: var(--purple-a);
+  color: var(--purple);
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: .01em;
+}
+.btn-add:hover { background: var(--purple-a2); border-color: var(--purple); }
+.btn-add:active { transform: scale(.98); }
+
+/* ── transactions ── */
+.txn-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; padding-right: 2px; }
+.txn-empty {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text3); text-align: center;
+  padding: 2.5rem 0;
+}
+.txn {
+  display: flex; align-items: center;
+  gap: 12px; padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: border-color .15s;
+}
+.txn:hover { border-color: var(--border2); }
+.txn-ico {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+}
+.txn-ico.in { background: var(--green-a); color: var(--green); }
+.txn-ico.out { background: var(--red-a); color: var(--red); }
+.txn-info { flex: 1; min-width: 0; }
+.txn-name {
+  font-size: 13px; font-weight: 500;
+  color: var(--text); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.txn-meta { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 2px; }
+.txn-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.txn-amt { font-family: var(--mono); font-size: 12px; font-weight: 500; }
+.txn-amt.pos { color: var(--green); }
+.txn-amt.neg { color: var(--red); }
+.wh-pill {
+  font-family: var(--mono); font-size: 8px; letter-spacing: .06em;
+  padding: 2px 6px; border-radius: 4px;
+  background: var(--purple-a); color: var(--purple);
+  border: 1px solid rgba(155,140,255,.18);
+}
+.txn-del {
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 16px; line-height: 1;
+  padding: 2px 3px; transition: color .15s;
+}
+.txn-del:hover { color: var(--red); }
+
+/* ── chart ── */
+.chart-box { position: relative; height: 190px; }
+
+/* ── webhook log ── */
+.wh-log { display: flex; flex-direction: column; gap: 5px; max-height: 280px; overflow-y: auto; }
+.wh-item {
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.wh-ev { font-family: var(--mono); font-size: 10px; color: var(--purple); font-weight: 500; }
+.wh-dt { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+/* ── toast ── */
+#toast {
+  position: fixed; bottom: 28px; right: 28px;
+  font-family: var(--mono); font-size: 11px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 10px 16px;
+  color: var(--text2);
+  opacity: 0; transform: translateY(6px);
+  transition: all .22s; pointer-events: none; z-index: 999;
+}
+#toast.on { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <span class="brand-label">Money Operation</span>
+      <span class="brand-name">Dashboard</span>
+    </div>
+    <div class="header-meta">
+      <div class="live-pill">
+        <span class="live-dot"></span>
+        <span id="status">conectando</span>
+      </div>
+      <span class="date-tag" id="ddate"></span>
+      <div class="hdr-btns">
+        <button class="hdr-btn" onclick="toggleCfg()">webhook</button>
+        <button class="hdr-btn" onclick="load()">↺ sync</button>
+        <button class="hdr-btn del" onclick="resetAll()">zerar</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Alert -->
+  <div id="alert"></div>
+
+  <!-- Insight -->
+  <div id="insight"></div>
+
+  <!-- Webhook config -->
+  <div id="wh-cfg">
+    <div class="cfg-label">Configuração · Sharkbot Webhook</div>
+    <div class="cfg-url">
+      <span id="wh-url">http://SEU_IP:3000/webhook</span>
+      <button class="cfg-copy" onclick="copyUrl()">copiar</button>
+    </div>
+    <div class="cfg-hint">
+      Cole essa URL no painel de Integrações da Sharkbot.<br>
+      Eventos capturados: venda aprovada · venda pendente · novo lead (/start) · reembolso.
+    </div>
+  </div>
+
+  <!-- Metrics row 1 -->
+  <div class="metrics">
+    <div class="metric" style="--accent:var(--green)">
+      <div class="metric-accent"></div>
+      <div class="metric-lbl">Faturamento</div>
+      <div class="metric-val g" id="m-fat">R$ 0</div>
+      <div class="metric-hint">período total</div>
+    </div>
+    <div class="metric" style="--accent:var(--red)">
+      <div class="metric-accent"></div>
+      <div class="metric-lbl">Gasto total</div>
+      <div class="metric-val r" id="m-gasto">R$ 0</div>
+      <div class="metric-hint">ads + fixo + variável</div>
+    </div>
+    <div class="metric" style="--accent:var(--purple)">
+      <div class="metric-accent"></div>
+      <div class="metric-lbl">Lucro líquido</div>
+      <div class="metric-val p" id="m-lucro">R$ 0</div>
+      <div class="metric-hint">após custos</div>
+    </div>
+    <div class="metric" style="--accent:var(--amber)">
+      <div class="metric-accent"></div>
+      <div class="metric-lbl">CPA atual</div>
+      <div class="metric-val" id="m-cpa">—</div>
+      <div class="metric-hint">break-even R$ 17,49</div>
+    </div>
+  </div>
+  <div class="metrics">
+    <div class="metric" style="--accent:var(--purple)">
+      <div class="metric-accent"></div>
+      <div class="metric-lbl">Margem</div>
+      <div class="metric-val" id="m-margem">—</div>
+      <div class="metric-hint">lucro ÷ faturamento</div>
+    </div>
+    <div class="metric" style="--accent:var(--green)">
+      <div class="metric-accent"></div>
+      <div class="metric-lbl">Vendas</div>
+      <div class="metric-val p" id="m-vendas">0</div>
+      <div class="metric-hint">confirmadas</div>
+    </div>
+    <div class="metric" style="--accent:var(--amber)">
+      <div class="metric-accent"></div>
+      <div class="metric-lbl">Leads</div>
+      <div class="metric-val a" id="m-leads">0</div>
+      <div class="metric-hint">via sharkbot</div>
+    </div>
+    <div class="metric" style="--accent:var(--text3)">
+      <div class="metric-accent"></div>
+      <div class="metric-lbl">Pendentes</div>
+      <div class="metric-val" id="m-pend" style="color:var(--text2)">0</div>
+      <div class="metric-hint">aguardando pagto</div>
+    </div>
+  </div>
+
+  <!-- Gauge + Bars -->
+  <div class="grid2">
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Faturamento vs Gasto</span></div>
+      <div class="gauge-wrap">
+        <div class="gauge-ring">
+          <svg viewBox="0 0 150 150">
+            <circle cx="75" cy="75" r="60" fill="none" stroke="#1e1e28" stroke-width="12"/>
+            <circle cx="75" cy="75" r="60" fill="none" stroke="#ff7b7b" stroke-width="12"
+              stroke-dasharray="376.99 376.99" stroke-linecap="round" opacity=".4"/>
+            <circle cx="75" cy="75" r="60" fill="none" id="g-arc"
+              stroke="#6ee7a0" stroke-width="12"
+              stroke-dasharray="0 376.99"
+              stroke-linecap="round"
+              style="transition:stroke-dasharray .7s cubic-bezier(.4,0,.2,1),stroke .4s"/>
+          </svg>
+          <div class="gauge-center">
+            <div class="gauge-pct" id="g-pct">0%</div>
+            <div class="gauge-sub">cobertura</div>
+          </div>
+        </div>
+        <div class="gauge-legend">
+          <span><span class="gl" style="background:var(--green)"></span>Faturamento</span>
+          <span><span class="gl" style="background:var(--red);opacity:.5"></span>Gasto</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Indicadores</span></div>
+      <div class="bars">
+        <div class="bar-row">
+          <div class="bar-top">
+            <span class="bar-name">CPA atual</span>
+            <span class="bar-val" id="b-cpa">—</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" id="bf-cpa" style="width:0;background:var(--green)"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-top">
+            <span class="bar-name">Break-even</span>
+            <span class="bar-val" style="color:var(--purple)">R$ 17,49</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--purple2);opacity:.5"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-top">
+            <span class="bar-name">Gasto em Ads</span>
+            <span class="bar-val" id="b-ads">R$ 0</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" id="bf-ads" style="width:0;background:var(--red)"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-top">
+            <span class="bar-name">ROI</span>
+            <span class="bar-val" id="b-roi">—</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" id="bf-roi" style="width:0;background:var(--amber)"></div></div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-top">
+            <span class="bar-name">Conv. lead → venda</span>
+            <span class="bar-val" id="b-conv">—</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" id="bf-conv" style="width:0;background:var(--purple)"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form + Transactions -->
+  <div class="grid2">
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Lançamento manual</span></div>
+      <div class="form">
+        <div class="frow">
+          <div class="fg">
+            <label class="flbl">Tipo</label>
+            <select class="fsel" id="f-tipo" onchange="onTipo()">
+              <option value="gasto">Gasto</option>
+              <option value="faturamento">Faturamento</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="flbl">Categoria</label>
+            <select class="fsel" id="f-cat">
+              <option value="ads">Ads</option>
+              <option value="fixo">Custo fixo</option>
+              <option value="variavel">Variável</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow full">
+          <div class="fg">
+            <label class="flbl">Descrição</label>
+            <input class="finput" id="f-desc" type="text" placeholder="Ex: TikTok Ads 27/04">
+          </div>
+        </div>
+        <div class="frow">
+          <div class="fg">
+            <label class="flbl">Valor (R$)</label>
+            <input class="finput" id="f-val" type="number" step="0.01" min="0" placeholder="0,00">
+          </div>
+          <div class="fg" id="fg-qtd">
+            <label class="flbl">Qtd vendas</label>
+            <input class="finput" id="f-qtd" type="number" min="0" placeholder="0">
+          </div>
+        </div>
+        <button class="btn-add" onclick="addEntry()">+ Adicionar lançamento</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-ttl">Lançamentos</span>
+        <span class="card-badge" id="txn-ct">0</span>
+      </div>
+      <div class="txn-list" id="txn-list">
+        <div class="txn-empty">Nenhum lançamento ainda</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart + Webhook log -->
+  <div class="grid21">
+    <div class="card">
+      <div class="card-hd"><span class="card-ttl">Histórico diário</span></div>
+      <div class="chart-box">
+        <canvas id="chart" role="img" aria-label="Faturamento e gasto por dia">Gráfico histórico diário.</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd">
+        <span class="card-ttl">Webhook log</span>
+        <span class="card-badge" id="wh-ct">0</span>
+      </div>
+      <div class="wh-log" id="wh-log">
+        <div class="txn-empty">Aguardando eventos...</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const API = window.location.origin;
+const BE  = 17.49;
+let chart = null, poll = null;
+
+// init
+document.getElementById('ddate').textContent =
+  new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric',timeZone:'America/Sao_Paulo'});
+document.getElementById('wh-url').textContent = API + '/webhook';
+onTipo();
+load();
+poll = setInterval(load, 8000);
+
+// ── data ─────────────────────────────────────────────────────────────────────
+async function load() {
+  try {
+    const r = await fetch(API + '/api/data');
+    if (!r.ok) throw 0;
+    const d = await r.json();
+    document.getElementById('status').textContent = 'ao vivo';
+    render(d);
+  } catch {
+    document.getElementById('status').textContent = 'offline';
+  }
+}
+
+function fmt(v) { return 'R$ ' + v.toFixed(2).replace('.',','); }
+
+function render(d) {
+  const E = d.entries || [];
+  const leads = d.leads || 0;
+  const pend  = d.pendingCount || 0;
+  const wlog  = d.webhookLog || [];
+
+  const fat   = E.filter(e=>e.tipo==='faturamento').reduce((s,e)=>s+e.valor,0);
+  const gasto = E.filter(e=>e.tipo==='gasto').reduce((s,e)=>s+e.valor,0);
+  const ads   = E.filter(e=>e.cat==='ads').reduce((s,e)=>s+e.valor,0);
+  const lucro = fat - gasto;
+  const vend  = E.filter(e=>e.tipo==='faturamento').reduce((s,e)=>s+(e.qtd||1),0);
+  const cpa   = (vend>0&&ads>0) ? ads/vend : null;
+  const marg  = fat>0 ? lucro/fat*100 : null;
+  const roi   = ads>0 ? (fat-ads)/ads*100 : null;
+  const conv  = leads>0&&vend>0 ? vend/leads*100 : null;
+
+  // metrics
+  set('m-fat',   fmt(fat), 'g');
+  set('m-gasto', fmt(gasto), 'r');
+  setLucro(lucro);
+  setCpa(cpa);
+  setMarg(marg);
+  document.getElementById('m-vendas').textContent = vend;
+  document.getElementById('m-leads').textContent  = leads;
+  document.getElementById('m-pend').textContent   = pend;
+
+  // gauge
+  const circ = 2*Math.PI*60;
+  const pct  = gasto>0 ? Math.min(fat/gasto,1) : (fat>0?1:0);
+  document.getElementById('g-arc').setAttribute('stroke-dasharray', (circ*pct).toFixed(2)+' '+circ.toFixed(2));
+  const gc = pct>=1?'var(--green)':pct>=.65?'var(--amber)':'var(--red)';
+  document.getElementById('g-arc').style.stroke = gc;
+  document.getElementById('g-pct').textContent = Math.round(pct*100)+'%';
+  document.getElementById('g-pct').style.color = gc;
+
+  // bars
+  document.getElementById('b-cpa').textContent = cpa!==null?fmt(cpa):'—';
+  if (cpa!==null) {
+    const pf = Math.min(cpa/BE*100,100);
+    setBar('bf-cpa', pf, cpa<=BE?'var(--green)':'var(--red)');
+  }
+  document.getElementById('b-ads').textContent = fmt(ads);
+  setBar('bf-ads', gasto>0?Math.min(ads/gasto*100,100):0, 'var(--red)');
+  document.getElementById('b-roi').textContent = roi!==null?roi.toFixed(1)+'%':'—';
+  if (roi!==null) {
+    setBar('bf-roi', Math.min(Math.max(roi,0)/300*100,100), roi>=0?'var(--amber)':'var(--red)');
+    document.getElementById('b-roi').style.color = roi>=0?'var(--amber)':'var(--red)';
+  }
+  document.getElementById('b-conv').textContent = conv!==null?conv.toFixed(1)+'%':'—';
+  if (conv!==null) setBar('bf-conv', Math.min(conv,100), 'var(--purple)');
+
+  // alert
+  if (cpa!==null && cpa>BE*1.15) {
+    showEl('alert', `⚠ CPA ${fmt(cpa)} está ${((cpa/BE-1)*100).toFixed(0)}% acima do break-even. Escala travada.`);
+  } else hideEl('alert');
+
+  // insight
+  buildInsight(fat,gasto,lucro,cpa,marg,roi,conv,vend,leads);
+
+  // txn
+  renderTxn(E);
+  renderChart(E);
+  renderLog(wlog);
+}
+
+function set(id,val,cls=''){
+  const el=document.getElementById(id);
+  el.textContent=val;
+  el.className='metric-val'+(cls?' '+cls:'');
+}
+function setLucro(l){
+  const el=document.getElementById('m-lucro');
+  el.textContent=fmt(l);
+  el.className='metric-val '+(l>=0?'g':'r');
+}
+function setCpa(cpa){
+  const el=document.getElementById('m-cpa');
+  el.textContent=cpa!==null?fmt(cpa):'—';
+  el.className='metric-val '+(cpa===null?'':(cpa<=BE?'g':'r'));
+}
+function setMarg(m){
+  const el=document.getElementById('m-margem');
+  el.textContent=m!==null?m.toFixed(1)+'%':'—';
+  el.className='metric-val '+(m===null?'':(m>=20?'g':m>=0?'a':'r'));
+}
+function setBar(id,pct,col){
+  const el=document.getElementById(id);
+  el.style.width=pct+'%';
+  el.style.background=col;
+}
+
+function showEl(id,msg){ const e=document.getElementById(id); e.textContent=msg; e.classList.add('show'); }
+function hideEl(id){ document.getElementById(id).classList.remove('show'); }
+
+function buildInsight(fat,gasto,lucro,cpa,marg,roi,conv,vend,leads){
+  const box=document.getElementById('insight');
+  if(!fat&&!gasto){ box.classList.remove('show'); return; }
+  const parts=[];
+  parts.push(lucro>=0?`Lucro de ${fmt(lucro)} no período.`:`Prejuízo de ${fmt(Math.abs(lucro))} no período.`);
+  if(cpa!==null) parts.push(cpa<=BE?`CPA ${fmt(cpa)} — escala viável.`:`CPA ${fmt(cpa)} — acima do break-even.`);
+  if(marg!==null) parts.push(`Margem ${marg.toFixed(1)}%.`);
+  if(conv!==null) parts.push(`Conversão lead→venda ${conv.toFixed(1)}%.`);
+  box.textContent=parts.join('  ·  ');
+  box.classList.add('show');
+}
+
+// ── transactions ──────────────────────────────────────────────────────────────
+function renderTxn(E){
+  const el=document.getElementById('txn-list');
+  document.getElementById('txn-ct').textContent=E.length;
+  if(!E.length){ el.innerHTML='<div class="txn-empty">Nenhum lançamento ainda</div>'; return; }
+  el.innerHTML=[...E].reverse().map(e=>{
+    const pos=e.tipo==='faturamento';
+    const wb=e.source==='webhook'?'<span class="wh-pill">webhook</span>':'';
+    return `<div class="txn">
+      <div class="txn-ico ${pos?'in':'out'}">${pos?'↑':'↓'}</div>
+      <div class="txn-info">
+        <div class="txn-name">${e.desc} ${wb}</div>
+        <div class="txn-meta">${e.cat} · ${e.dia}</div>
+      </div>
+      <div class="txn-right">
+        <span class="txn-amt ${pos?'pos':'neg'}">${pos?'+':'-'}${fmt(e.valor)}</span>
+        <button class="txn-del" onclick="del(${e.id})">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── chart ─────────────────────────────────────────────────────────────────────
+function renderChart(E){
+  const m={};
+  E.forEach(e=>{
+    if(!m[e.dia]) m[e.dia]={fat:0,gasto:0};
+    if(e.tipo==='faturamento') m[e.dia].fat+=e.valor;
+    else m[e.dia].gasto+=e.valor;
+  });
+  const labels=Object.keys(m).sort();
+  const fat=labels.map(d=>+m[d].fat.toFixed(2));
+  const gasto=labels.map(d=>+m[d].gasto.toFixed(2));
+  if(chart) chart.destroy();
+  const ctx=document.getElementById('chart').getContext('2d');
+  chart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Faturamento',data:fat,backgroundColor:'rgba(110,231,160,.65)',borderRadius:5,borderSkipped:false},
+        {label:'Gasto',data:gasto,backgroundColor:'rgba(255,123,123,.5)',borderRadius:5,borderSkipped:false}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#44445a',font:{size:10,family:'JetBrains Mono'}}},
+        y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{color:'#44445a',font:{size:10,family:'JetBrains Mono'},callback:v=>'R$'+v}}
+      }
+    }
+  });
+}
+
+// ── webhook log ───────────────────────────────────────────────────────────────
+function renderLog(log){
+  const el=document.getElementById('wh-log');
+  document.getElementById('wh-ct').textContent=log.length;
+  if(!log.length){ el.innerHTML='<div class="txn-empty">Aguardando eventos...</div>'; return; }
+  el.innerHTML=log.slice(0,20).map(w=>{
+    const r=w.raw||{};
+    const ev=r.event||r.type||r.status||r.order_status||'evento';
+    const prod=r.product||r.produto||r.bot_name||'';
+    return `<div class="wh-item">
+      <div class="wh-ev">${ev}</div>
+      <div class="wh-dt">${w.dia}${prod?' · '+prod:''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── form ──────────────────────────────────────────────────────────────────────
+function onTipo(){
+  const fat=document.getElementById('f-tipo').value==='faturamento';
+  document.getElementById('f-cat').innerHTML=fat
+    ?'<option value="venda">Venda</option><option value="upsell">Upsell</option><option value="outro">Outro</option>'
+    :'<option value="ads">Ads</option><option value="fixo">Custo fixo</option><option value="variavel">Variável</option><option value="outro">Outro</option>';
+  document.getElementById('fg-qtd').style.display=fat?'':'none';
+}
+
+async function addEntry(){
+  const tipo=document.getElementById('f-tipo').value;
+  const cat =document.getElementById('f-cat').value;
+  const desc=document.getElementById('f-desc').value||cat;
+  const val =parseFloat(document.getElementById('f-val').value);
+  const qtd =parseInt(document.getElementById('f-qtd').value)||0;
+  if(!val||val<=0){ toast('Informe um valor válido'); return; }
+  await fetch(API+'/api/entry',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo,cat,desc,valor:val,qtd})});
+  document.getElementById('f-desc').value='';
+  document.getElementById('f-val').value='';
+  document.getElementById('f-qtd').value='';
+  toast('Lançamento adicionado');
+  load();
+}
+
+async function del(id){
+  await fetch(API+'/api/entry/'+id,{method:'DELETE'});
+  toast('Removido');
+  load();
+}
+
+async function resetAll(){
+  if(!confirm('Zerar todos os dados?')) return;
+  await fetch(API+'/api/reset',{method:'POST'});
+  toast('Dados zerados');
+  load();
+}
+
+// ── utils ─────────────────────────────────────────────────────────────────────
+function toggleCfg(){ document.getElementById('wh-cfg').classList.toggle('open'); }
+function copyUrl(){ navigator.clipboard.writeText(API+'/webhook').then(()=>toast('URL copiada!')); }
+
+let tt;
+function toast(msg){
+  const e=document.getElementById('toast');
+  e.textContent=msg; e.classList.add('on');
+  clearTimeout(tt); tt=setTimeout(()=>e.classList.remove('on'),2400);
+}
+</script>
+</body>
+</html>
