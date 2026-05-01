@@ -1,25 +1,23 @@
-const express = require('express');
+﻿const express = require('express');
 const cors    = require('cors');
 const fs      = require('fs');
 const path    = require('path');
 
-const app  = express();
-const PORT = process.env.PORT || 3000;
-const DATA = path.join(__dirname, 'data.json');
+const app      = express();
+const PORT     = process.env.PORT || 3000;
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const DATA     = path.join(DATA_DIR, 'data.json');
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-// Configure no Railway: Settings → Variables
-// DASHBOARD_USER=seu_usuario  DASHBOARD_PASS=sua_senha
+// Auth
 const AUTH_USER    = process.env.DASHBOARD_USER || null;
 const AUTH_PASS    = process.env.DASHBOARD_PASS || null;
 const AUTH_ENABLED = !!(AUTH_USER && AUTH_PASS);
 
-// ── Middleware ─────────────────────────────────────────────────────────────────
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Auth (webhook e health são públicos)
 app.use((req, res, next) => {
   if (req.path === '/webhook' || req.path === '/health') return next();
   if (!AUTH_ENABLED) return next();
@@ -36,7 +34,7 @@ app.use((req, res, next) => {
 
 app.use(express.static(__dirname));
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Helpers
 function load() {
   if (!fs.existsSync(DATA)) {
     const d = { entries: [], leads: 0, pendingCount: 0, webhookLog: [], rawLog: [] };
@@ -55,31 +53,68 @@ function nowBR() {
   return new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
 }
 
-// ── Auto backup CSV ───────────────────────────────────────────────────────────
+// Auto backup CSV
 function generateBackup() {
   try {
     const d = load();
-    const dir = path.join(__dirname, 'backups');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    const dir = path.join(DATA_DIR, 'backups');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const date = new Date().toISOString().split('T')[0];
-    const file = path.join(dir, `backup-${date}.csv`);
+    const file = path.join(dir, 'backup-' + date + '.csv');
     const header = 'id,tipo,cat,desc,valor,qtd,dia,hora,source\n';
     const rows = (d.entries || []).map(e =>
-      `${e.id},${e.tipo},${e.cat},"${(e.desc||'').replace(/"/g,'""')}",${e.valor},${e.qtd||0},${e.dia||''},${e.hora||''},${e.source||'manual'}`
+      e.id + ',' + e.tipo + ',' + e.cat + ',"' + (e.desc||'').replace(/"/g,'""') + '",' + e.valor + ',' + (e.qtd||0) + ',' + (e.dia||'') + ',' + (e.hora||'') + ',' + (e.source||'manual')
     ).join('\n');
     fs.writeFileSync(file, header + rows);
-    // Guarda apenas 30 backups
     const files = fs.readdirSync(dir).filter(f => f.startsWith('backup-')).sort();
     if (files.length > 30) files.slice(0, files.length - 30).forEach(f => fs.unlinkSync(path.join(dir, f)));
-    console.log(`[BACKUP] Gerado: ${file}`);
+    console.log('[BACKUP] Gerado: ' + file);
   } catch (e) { console.error('[BACKUP] Erro:', e.message); }
 }
 
-setInterval(generateBackup, 6 * 60 * 60 * 1000); // a cada 6h
-setTimeout(generateBackup, 8000);                  // ao iniciar
+setInterval(generateBackup, 6 * 60 * 60 * 1000);
+setTimeout(generateBackup, 8000);
 
-// ── API ───────────────────────────────────────────────────────────────────────
+// API
 app.get('/api/data', (req, res) => res.json(load()));
+
+app.get('/api/config', (req, res) => {
+  const base = req.protocol + '://' + req.get('host');
+  res.json({ webhookUrl: base + '/webhook' });
+});
+
+app.get('/api/criativos', (req, res) => res.json(load().criativos || []));
+app.post('/api/criativos', (req, res) => {
+  const d = load();
+  d.criativos = d.criativos || [];
+  d.criativos.unshift({ ...req.body, id: Date.now() });
+  save(d); res.json({ ok: true });
+});
+app.delete('/api/criativos/:id', (req, res) => {
+  const d = load();
+  d.criativos = (d.criativos || []).filter(c => c.id !== parseInt(req.params.id));
+  save(d); res.json({ ok: true });
+});
+
+app.get('/api/decisoes', (req, res) => res.json(load().decisoes || []));
+app.post('/api/decisoes', (req, res) => {
+  const d = load();
+  d.decisoes = d.decisoes || [];
+  d.decisoes.unshift({ ...req.body, id: Date.now() });
+  save(d); res.json({ ok: true });
+});
+app.delete('/api/decisoes/:id', (req, res) => {
+  const d = load();
+  d.decisoes = (d.decisoes || []).filter(x => x.id !== parseInt(req.params.id));
+  save(d); res.json({ ok: true });
+});
+
+app.get('/api/meta', (req, res) => res.json({ meta: load().meta || 0 }));
+app.post('/api/meta', (req, res) => {
+  const d = load();
+  d.meta = parseFloat(req.body.meta) || 0;
+  save(d); res.json({ ok: true });
+});
 
 app.post('/api/entry', (req, res) => {
   const d = load();
@@ -87,6 +122,7 @@ app.post('/api/entry', (req, res) => {
     id: Date.now(), tipo: req.body.tipo, cat: req.body.cat,
     desc: req.body.desc, valor: parseFloat(req.body.valor),
     qtd: parseInt(req.body.qtd) || 0,
+    platform: req.body.platform || '',
     dia: todayBR(), hora: nowBR(), source: 'manual', ts: Date.now()
   });
   save(d); res.json({ ok: true });
@@ -99,7 +135,8 @@ app.delete('/api/entry/:id', (req, res) => {
 });
 
 app.post('/api/reset', (req, res) => {
-  generateBackup(); // backup antes de zerar
+  if (req.body.confirm !== true) return res.status(400).json({ error: 'Confirmação necessária' });
+  generateBackup();
   save({ entries: [], leads: 0, pendingCount: 0, webhookLog: [], rawLog: [] });
   res.json({ ok: true });
 });
@@ -107,16 +144,16 @@ app.post('/api/reset', (req, res) => {
 app.get('/api/backup', (req, res) => {
   generateBackup();
   const date = new Date().toISOString().split('T')[0];
-  const file = path.join(__dirname, 'backups', `backup-${date}.csv`);
+  const file = path.join(DATA_DIR, 'backups', 'backup-' + date + '.csv');
   if (!fs.existsSync(file)) return res.json({ error: 'Backup não encontrado' });
-  res.setHeader('Content-Disposition', `attachment; filename="moneyop-${date}.csv"`);
+  res.setHeader('Content-Disposition', 'attachment; filename="moneyop-' + date + '.csv"');
   res.setHeader('Content-Type', 'text/csv');
   res.send(fs.readFileSync(file));
 });
 
 app.get('/api/rawlog', (req, res) => res.json(load().rawLog || []));
 
-// ── WEBHOOK Sharkbot ──────────────────────────────────────────────────────────
+// WEBHOOK Sharkbot
 app.post('/webhook', (req, res) => {
   const d    = load();
   const body = req.body;
@@ -140,47 +177,45 @@ app.post('/webhook', (req, res) => {
   if (['approved','aprovado','paid','pago','pagamento_aprovado','pagamento aprovado'].some(k => event.includes(k))) {
     d.entries.push({
       id: Date.now(), tipo: 'faturamento', cat: 'venda',
-      desc: `Venda aprovada${produto ? ' · ' + produto : ''} (webhook)`,
+      desc: 'Venda aprovada' + (produto ? ' · ' + produto : '') + ' (webhook)',
       valor: valor || 0, qtd: 1, dia: todayBR(), hora: nowBR(), source: 'webhook', ts: Date.now()
     });
-    console.log(`[WH] ✅ Venda · ${produto} · R$${valor}`);
+    console.log('[WH] Venda · ' + produto + ' · R$' + valor);
 
   } else if (['pix','gerado','pending','waiting','pendente','pix gerado'].some(k => event.includes(k))) {
     d.pendingCount = (d.pendingCount || 0) + 1;
-    console.log(`[WH] 🟡 PIX gerado · ${produto}`);
+    console.log('[WH] PIX gerado · ' + produto);
 
   } else if (['lead','start','novo lead','new_lead','novo_lead'].some(k => event.includes(k))) {
     d.leads = (d.leads || 0) + 1;
-    console.log(`[WH] 👤 Novo lead`);
+    console.log('[WH] Novo lead');
 
   } else if (['refund','reembolso','chargeback'].some(k => event.includes(k))) {
     d.entries.push({
       id: Date.now(), tipo: 'gasto', cat: 'reembolso',
-      desc: `Reembolso${produto ? ' · ' + produto : ''} (webhook)`,
+      desc: 'Reembolso' + (produto ? ' · ' + produto : '') + ' (webhook)',
       valor: valor || 0, qtd: 0, dia: todayBR(), hora: nowBR(), source: 'webhook', ts: Date.now()
     });
-    console.log(`[WH] ↩️  Reembolso · R$${valor}`);
+    console.log('[WH] Reembolso · R$' + valor);
 
   } else {
-    console.log(`[WH] ❓ Evento desconhecido: "${event}"`);
-    console.log(`[WH] Body:`, JSON.stringify(body));
-    console.log(`[WH] Acesse /api/rawlog para ver o payload completo`);
+    console.log('[WH] Evento desconhecido: "' + event + '"');
+    console.log('[WH] Body:', JSON.stringify(body));
   }
 
   save(d);
   res.json({ ok: true, event, received: true });
 });
 
-// ── Health ────────────────────────────────────────────────────────────────────
+// Health
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now(), auth: AUTH_ENABLED }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-// ── Start ─────────────────────────────────────────────────────────────────────
+// Start
 app.listen(PORT, () => {
-  console.log(`\n✅ MoneyOp Dashboard`);
-  console.log(`   http://localhost:${PORT}`);
-  console.log(`   Webhook:  /webhook`);
-  console.log(`   Backup:   /api/backup`);
-  console.log(`   Raw log:  /api/rawlog`);
-  console.log(`   Auth:     ${AUTH_ENABLED ? '🔒 ATIVO' : '⚠️  Desativado — defina DASHBOARD_USER e DASHBOARD_PASS'}\n`);
+  console.log('\nMoneyOp Dashboard');
+  console.log('   http://localhost:' + PORT);
+  console.log('   Webhook:   /webhook');
+  console.log('   Auth:      ' + (AUTH_ENABLED ? 'ATIVO' : 'Desativado'));
+  console.log('   Data dir:  ' + DATA_DIR + '\n');
 });
