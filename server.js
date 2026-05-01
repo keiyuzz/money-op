@@ -1,5 +1,6 @@
 ﻿const express = require('express');
 const cors    = require('cors');
+const crypto  = require('crypto');
 const fs      = require('fs');
 const path    = require('path');
 
@@ -9,13 +10,16 @@ const DATA_DIR = process.env.DATA_DIR || __dirname;
 const DATA     = path.join(DATA_DIR, 'data.json');
 
 // Auth
-const AUTH_USER    = process.env.DASHBOARD_USER || null;
-const AUTH_PASS    = process.env.DASHBOARD_PASS || null;
-const AUTH_ENABLED = !!(AUTH_USER && AUTH_PASS);
+const AUTH_USER      = process.env.DASHBOARD_USER || null;
+const AUTH_PASS      = process.env.DASHBOARD_PASS || null;
+const AUTH_ENABLED   = !!(AUTH_USER && AUTH_PASS);
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || null;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buf) => { req.rawBody = buf; }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 app.use((req, res, next) => {
@@ -155,6 +159,17 @@ app.get('/api/rawlog', (req, res) => res.json(load().rawLog || []));
 
 // WEBHOOK Sharkbot
 app.post('/webhook', (req, res) => {
+  // Valida assinatura HMAC-SHA256
+  if (WEBHOOK_SECRET) {
+    const sig      = req.headers['x-webhook-signature'] || '';
+    const expected = crypto.createHmac('sha256', WEBHOOK_SECRET).update(req.rawBody || '').digest('hex');
+    const valid    = sig === expected || sig === 'sha256=' + expected;
+    if (!valid) {
+      console.log('[WH] Assinatura inválida — bloqueado');
+      return res.status(401).json({ error: 'Assinatura inválida' });
+    }
+  }
+
   const d    = load();
   const body = req.body;
 
@@ -162,39 +177,56 @@ app.post('/webhook', (req, res) => {
   d.rawLog.unshift({ ts: Date.now(), dia: todayBR(), hora: nowBR(), body });
   if (d.rawLog.length > 100) d.rawLog = d.rawLog.slice(0, 100);
 
-  const event = (
-    req.headers['x-sharkbot-event'] ||
-    body.event || body.type || body.evento || body.status || body.order_status || ''
-  ).toLowerCase().trim();
+  const event    = (body.event || '').toLowerCase().trim();
+  const data     = body.data || body;
+  const tx       = data.transaction || {};
+  const flow     = data.flow || {};
+  const customer = data.customer || {};
+  const tracking = data.tracking || {};
 
-  const valor   = parseFloat(body.amount || body.valor || body.value || body.price || 0);
-  const produto = body.product || body.produto || body.bot_name || body.flow || body.name || '';
+  const valor   = parseFloat(tx.amount || 0);
+  const produto = tx.plan_name || flow.name || body.bot?.username || '';
+  const lead_id = customer.telegram_id || '';
+  const utm     = tracking.utm_source ? tracking.utm_source + (tracking.utm_campaign ? '/' + tracking.utm_campaign : '') : '';
 
   d.webhookLog = d.webhookLog || [];
   d.webhookLog.unshift({ ts: Date.now(), dia: todayBR(), hora: nowBR(), event: event || 'desconhecido', raw: body });
   if (d.webhookLog.length > 50) d.webhookLog = d.webhookLog.slice(0, 50);
 
-  if (['approved','aprovado','paid','pago','pagamento_aprovado','pagamento aprovado'].some(k => event.includes(k))) {
+  if (event === 'payment_approved') {
     d.entries.push({
       id: Date.now(), tipo: 'faturamento', cat: 'venda',
-      desc: 'Venda aprovada' + (produto ? ' · ' + produto : '') + ' (webhook)',
-      valor: valor || 0, qtd: 1, dia: todayBR(), hora: nowBR(), source: 'webhook', ts: Date.now()
+      desc: 'Venda aprovada' + (produto ? ' · ' + produto : '') + (utm ? ' [' + utm + ']' : '') + ' (webhook)',
+      valor, qtd: 1, dia: todayBR(), hora: nowBR(), source: 'webhook',
+      lead_id, utm,
+      sales_code: tx.sales_code || '',
+      flow_name: flow.name || '',
+      bot_username: data.bot?.username || '',
+      plan_name: tx.plan_name || '',
+      utm_source: tracking.utm_source || '',
+      utm_campaign: tracking.utm_campaign || '',
+      utm_medium: tracking.utm_medium || '',
+      utm_content: tracking.utm_content || '',
+      utm_term: tracking.utm_term || '',
+      payment_type: tx.type || '',
+      ts: Date.now()
     });
-    console.log('[WH] Venda · ' + produto + ' · R$' + valor);
+    console.log('[WH] Venda · ' + produto + ' · R$' + valor + ' · lead=' + lead_id);
 
-  } else if (['pix','gerado','pending','waiting','pendente','pix gerado'].some(k => event.includes(k))) {
+  } else if (event === 'payment_created') {
     d.pendingCount = (d.pendingCount || 0) + 1;
-    console.log('[WH] PIX gerado · ' + produto);
+    console.log('[WH] PIX gerado · ' + produto + ' · R$' + valor + ' · lead=' + lead_id);
 
-  } else if (['lead','start','novo lead','new_lead','novo_lead'].some(k => event.includes(k))) {
+  } else if (event === 'user_joined') {
     d.leads = (d.leads || 0) + 1;
-    console.log('[WH] Novo lead');
+    console.log('[WH] Novo lead · ' + (customer.first_name || '') + ' · ' + lead_id + (utm ? ' · utm=' + utm : ''));
 
-  } else if (['refund','reembolso','chargeback'].some(k => event.includes(k))) {
+  } else if (event === 'payment_refunded' || event === 'chargeback') {
     d.entries.push({
       id: Date.now(), tipo: 'gasto', cat: 'reembolso',
       desc: 'Reembolso' + (produto ? ' · ' + produto : '') + ' (webhook)',
-      valor: valor || 0, qtd: 0, dia: todayBR(), hora: nowBR(), source: 'webhook', ts: Date.now()
+      valor, qtd: 0, dia: todayBR(), hora: nowBR(), source: 'webhook',
+      lead_id, ts: Date.now()
     });
     console.log('[WH] Reembolso · R$' + valor);
 

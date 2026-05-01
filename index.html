@@ -321,6 +321,7 @@ body::after{content:'';position:fixed;bottom:-60px;right:8%;width:450px;height:3
     <div class="sb-item" onclick="showSection('visao');scrollToForm()"><span class="sb-icon">＋</span>Lançamento</div>
     <div class="sb-item" onclick="toggleWh()"><span class="sb-icon">⚡</span>Webhook</div>
     <div class="sb-sec">Análise</div>
+    <div class="sb-item" onclick="showSection('analytics')"><span class="sb-icon">📊</span>Analytics</div>
     <div class="sb-item" onclick="showSection('criativos')"><span class="sb-icon">🎨</span>Criativos</div>
     <div class="sb-item" onclick="showSection('calculadora')"><span class="sb-icon">🧮</span>Calc. Escala</div>
     <div class="sb-item" onclick="showSection('decisoes')"><span class="sb-icon">📋</span>Decisões</div>
@@ -557,7 +558,10 @@ body::after{content:'';position:fixed;bottom:-60px;right:8%;width:450px;height:3
         <div class="panel">
           <div class="p-hd">
             <div class="p-title">Lançamentos</div>
-            <span class="panel-badge" id="txn-ct">0 itens</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <select class="fsel" id="txn-filter-bot" onchange="applyTxnFilter()" style="font-size:10px;padding:4px 8px;height:auto;width:auto"><option value="">Todos os bots</option></select>
+              <span class="panel-badge" id="txn-ct">0 itens</span>
+            </div>
           </div>
           <div class="txns" id="txn-list"><div class="txn-empty">Nenhum lançamento ainda</div></div>
         </div>
@@ -570,6 +574,15 @@ body::after{content:'';position:fixed;bottom:-60px;right:8%;width:450px;height:3
           <span class="panel-badge-cyan" id="wh-ct">0 eventos</span>
         </div>
         <div class="wh-log" id="wh-log"><div class="txn-empty" style="grid-column:1/-1">Aguardando eventos...</div></div>
+      </div>
+
+      <!-- SALES CODES -->
+      <div class="panel" id="sales-code-panel" style="display:none">
+        <div class="p-hd">
+          <div><div class="p-title">Sales Codes</div><div class="p-sub">Vendas por código de rastreamento</div></div>
+          <span class="panel-badge-cyan" id="sc-total-badge">0 códigos</span>
+        </div>
+        <div id="sc-list" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
 
       <!-- Hidden compat IDs -->
@@ -683,6 +696,58 @@ body::after{content:'';position:fixed;bottom:-60px;right:8%;width:450px;height:3
       </div>
     </div>
 
+    <!-- ═══ ANALYTICS ═══ -->
+    <div id="sec-analytics" style="display:none">
+      <div id="an-empty" style="text-align:center;padding:60px 20px;color:rgba(255,255,255,.2);font-size:13px">Aguardando vendas via webhook para gerar analytics...</div>
+      <div id="an-content" style="display:none">
+
+        <!-- Row 1: Top Rankings -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
+          <div class="panel"><div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(167,139,250,.1);color:var(--purple);display:flex;align-items:center;justify-content:center;font-size:14px">🤖</div><div><div class="p-title">Top Bots</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">mais vendidos</div></div></div></div><div id="an-bots" class="txns" style="max-height:200px"></div></div>
+          <div class="panel"><div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(0,255,231,.08);color:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:14px">⚡</div><div><div class="p-title">Top Fluxos</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">mais vendidos</div></div></div></div><div id="an-flows" class="txns" style="max-height:200px"></div></div>
+          <div class="panel"><div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(255,184,0,.1);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:14px">🏆</div><div><div class="p-title">Top Planos</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">mais vendidos</div></div></div></div><div id="an-plans" class="txns" style="max-height:200px"></div></div>
+          <div class="panel"><div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(0,255,136,.08);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:14px">📅</div><div><div class="p-title">Top Dias</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">mais vendidos</div></div></div></div><div id="an-days" class="txns" style="max-height:200px"></div></div>
+        </div>
+
+        <!-- Row 2: Tickets + Sales Codes + Funil -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:12px;margin-bottom:12px">
+          <div class="panel"><div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(0,255,136,.08);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:14px">🎫</div><div><div class="p-title">Top Tickets</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">mais vendidos</div></div></div></div><div id="an-tickets" class="txns" style="max-height:200px"></div></div>
+          <div class="panel"><div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(167,139,250,.1);color:var(--purple);display:flex;align-items:center;justify-content:center;font-size:14px">🏷️</div><div><div class="p-title">Top Códigos</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">mais receita</div></div></div></div><div id="an-codes" class="txns" style="max-height:200px"></div></div>
+          <div class="panel">
+            <div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(0,255,231,.08);color:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:16px">▽</div><div><div class="p-title">Funil de Conversão</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">jornada até a compra</div></div></div></div>
+            <div style="display:flex;align-items:stretch;border-radius:10px;overflow:hidden;height:90px;margin-bottom:10px">
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;background:rgba(0,255,231,.08)"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:var(--cyan);margin-bottom:4px">/START</div><div style="font-size:24px;font-weight:800;color:var(--cyan)" id="an-fn-leads">0</div></div>
+              <div style="width:20px;display:flex;align-items:center;justify-content:center;color:var(--text3)">→</div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;background:rgba(167,139,250,.08)"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:var(--purple);margin-bottom:4px">PIX</div><div style="font-size:24px;font-weight:800;color:var(--purple)" id="an-fn-pix">0</div></div>
+              <div style="width:20px;display:flex;align-items:center;justify-content:center;color:var(--text3)">→</div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;background:rgba(0,255,136,.08)"><div style="font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:var(--green);margin-bottom:4px">PAGO</div><div style="font-size:24px;font-weight:800;color:var(--green)" id="an-fn-sales">0</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+              <div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Start→PIX</div><div style="font-size:14px;font-weight:800;color:var(--amber);margin-top:3px" id="an-fn-r1">—</div></div>
+              <div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">PIX→Pago</div><div style="font-size:14px;font-weight:800;color:var(--green);margin-top:3px" id="an-fn-r2">—</div></div>
+              <div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center"><div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Start→Pago</div><div style="font-size:14px;font-weight:800;color:var(--cyan);margin-top:3px" id="an-fn-r3">—</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Campanhas + Fontes + Posicionamentos -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px">
+          <div class="panel"><div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(255,61,107,.1);color:var(--red);display:flex;align-items:center;justify-content:center;font-size:14px">📣</div><div><div class="p-title">Top Campanhas</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">utm_campaign</div></div></div></div><div id="an-campaigns" class="txns" style="max-height:200px"></div></div>
+          <div class="panel"><div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(0,255,231,.08);color:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:14px">🌐</div><div><div class="p-title">Fontes de Tráfego</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">utm_source</div></div></div></div><div id="an-sources" class="txns" style="max-height:200px"></div></div>
+          <div class="panel"><div class="p-hd"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(167,139,250,.1);color:var(--purple);display:flex;align-items:center;justify-content:center;font-size:14px">📍</div><div><div class="p-title">Posicionamentos</div><div class="p-sub" style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">utm_term</div></div></div></div><div id="an-placements" class="txns" style="max-height:200px"></div></div>
+        </div>
+
+        <!-- Row 4: LTV + Payment type -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+          <div class="panel"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">💵 LTV Médio</div><div style="font-size:30px;font-weight:800;color:var(--green)" id="an-ltv">R$0</div><div style="font-size:10px;color:var(--text3);margin-top:6px">gasto médio por cliente</div></div>
+          <div class="panel"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">🔄 Vendas/Usuário</div><div style="font-size:30px;font-weight:800;color:var(--purple)" id="an-vpu">0×</div><div style="font-size:10px;color:var(--text3);margin-top:6px">compras por cliente</div></div>
+          <div class="panel"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">🔁 Remarketing</div><div style="font-size:30px;font-weight:800;color:var(--cyan)" id="an-remarketing">0</div><div style="font-size:10px;color:var(--text3);margin-top:6px" id="an-remarketing-pct">— das vendas</div></div>
+          <div class="panel"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">🆕 Novos Compradores</div><div style="font-size:30px;font-weight:800;color:var(--amber)" id="an-new-buyers">0</div><div style="font-size:10px;color:var(--text3);margin-top:6px" id="an-new-buyers-pct">— das vendas</div></div>
+        </div>
+
+      </div>
+    </div>
+
   </div><!-- /scroll -->
 
   <!-- STATUS BAR -->
@@ -736,7 +801,7 @@ setInterval(load,8000);
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 function showSection(s){
-  ['visao','criativos','calculadora','decisoes'].forEach(id=>{
+  ['visao','criativos','calculadora','decisoes','analytics'].forEach(id=>{
     document.getElementById('sec-'+id).style.display=id===s?'':'none';
   });
   document.querySelectorAll('.sb-item').forEach(el=>{
@@ -981,7 +1046,7 @@ function render(d){
   renderSpark('spark-lucro',lucroDay,'var(--green)');
   renderSpark('spark-leads',[...Array(6).fill(0),leads],'var(--purple)');
 
-  renderTxn(E);renderChart(E);renderLog(wlog);renderPlatform(E);renderDaily(d.entries||[]);
+  renderTxn(E);renderChart(E);renderLog(wlog);renderPlatform(E);renderDaily(d.entries||[]);renderSalesCodes(E);renderAnalytics(d);
 }
 
 function setFn(k,val,wp,pt){
@@ -993,7 +1058,22 @@ function showA(id,msg){const e=document.getElementById(id);e.textContent=msg;e.c
 function hideA(id){document.getElementById(id).classList.remove('show')}
 
 // ── Transactions ──────────────────────────────────────────────────────────────
+let _allEntries=[];
+function applyTxnFilter(){
+  const bot=document.getElementById('txn-filter-bot').value;
+  const filtered=bot?_allEntries.filter(e=>e.bot_username===bot||e.flow_name===bot):_allEntries;
+  _renderTxnList(filtered);
+}
 function renderTxn(E){
+  _allEntries=E;
+  // populate bot filter
+  const sel=document.getElementById('txn-filter-bot');
+  const cur=sel.value;
+  const bots=[...new Set(E.filter(e=>e.bot_username).map(e=>e.bot_username))];
+  sel.innerHTML='<option value="">Todos os bots</option>'+bots.map(b=>`<option value="${b}"${cur===b?' selected':''}>${b}</option>`).join('');
+  applyTxnFilter();
+}
+function _renderTxnList(E){
   const el=document.getElementById('txn-list');
   document.getElementById('txn-ct').textContent=E.length+' itens';
   if(!E.length){el.innerHTML='<div class="txn-empty">Nenhum lançamento ainda</div>';return}
@@ -1001,8 +1081,110 @@ function renderTxn(E){
     const pos=e.tipo==='faturamento';
     const wb=e.source==='webhook'?'<span class="wh-tag">webhook</span>':'';
     const platTag=e.platform?`<span class="wh-tag" style="background:rgba(0,255,231,.08);border-color:rgba(0,255,231,.2);color:var(--cyan)">${e.platform}</span>`:'';
-    return `<div class="txn"><div class="t-ico ${pos?'in':'out'}">${pos?'↑':'↓'}</div><div style="flex:1;min-width:0"><div class="t-name">${e.desc}${wb}${platTag}</div><div class="t-meta">${e.cat}·${e.dia||''}${e.hora?'·'+e.hora:''}</div></div><div class="t-amt ${pos?'pos':'neg'}">${pos?'+':'-'}${fmt(e.valor)}</div><button class="t-del" onclick="del(${e.id})">×</button></div>`;
+    const botTag=e.bot_username?`<span class="wh-tag" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.25);color:var(--purple)">${e.bot_username}</span>`:'';
+    const scMeta=e.sales_code?`·<span style="color:var(--amber)">${e.sales_code}</span>`:'';
+    const flowMeta=e.flow_name?`·${e.flow_name}`:'';
+    return `<div class="txn"><div class="t-ico ${pos?'in':'out'}">${pos?'↑':'↓'}</div><div style="flex:1;min-width:0"><div class="t-name">${e.desc}${wb}${platTag}${botTag}</div><div class="t-meta">${e.cat}${flowMeta}${scMeta}·${e.dia||''}${e.hora?'·'+e.hora:''}</div></div><div class="t-amt ${pos?'pos':'neg'}">${pos?'+':'-'}${fmt(e.valor)}</div><button class="t-del" onclick="del(${e.id})">×</button></div>`;
   }).join('');
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+function renderAnalytics(d){
+  const vendas=(d.entries||[]).filter(e=>e.tipo==='faturamento'&&e.source==='webhook');
+  const empty=document.getElementById('an-empty');
+  const content=document.getElementById('an-content');
+  if(!vendas.length){empty.style.display='';content.style.display='none';return}
+  empty.style.display='none';content.style.display='';
+
+  const pct=(a,b)=>b?((a/b)*100).toFixed(1)+'%':'—';
+  const fmtK=v=>v>=1000?'R$'+(v/1000).toFixed(1)+'k':'R$'+v.toFixed(2);
+
+  function rankHtml(map,colorFn){
+    return Object.entries(map).sort((a,b)=>b[1].total-a[1].total).slice(0,5).map(([k,v],i)=>{
+      const nums=['r1','r2','r3','rn','rn'];
+      const cls=nums[i]||'rn';
+      const color=colorFn?colorFn(k):'var(--green)';
+      return `<div class="txn"><div class="t-ico in" style="width:22px;height:22px;font-size:10px;font-weight:800;border-radius:6px">${i+1}</div><div style="flex:1;min-width:0"><div class="t-name" style="font-size:11px">${k||'—'}</div><div class="t-meta">${v.count} venda${v.count!==1?'s':''}</div></div><div class="t-amt pos" style="font-size:11px">${fmtK(v.total)}</div></div>`;
+    }).join('')||'<div class="txn-empty">Sem dados</div>';
+  }
+
+  function group(field){
+    const m={};
+    vendas.forEach(e=>{const k=(e[field]||'').split('|')[0].trim()||'(vazio)';if(!m[k])m[k]={count:0,total:0};m[k].count++;m[k].total+=e.valor||0;});
+    return m;
+  }
+
+  // Top Bots
+  document.getElementById('an-bots').innerHTML=rankHtml(group('bot_username'));
+  // Top Fluxos
+  document.getElementById('an-flows').innerHTML=rankHtml(group('flow_name'));
+  // Top Planos
+  document.getElementById('an-plans').innerHTML=rankHtml(group('plan_name'));
+  // Top Dias
+  document.getElementById('an-days').innerHTML=rankHtml(group('dia'));
+  // Top Campanhas
+  document.getElementById('an-campaigns').innerHTML=rankHtml(group('utm_campaign'));
+  // Fontes
+  document.getElementById('an-sources').innerHTML=rankHtml(group('utm_source'));
+  // Posicionamentos
+  document.getElementById('an-placements').innerHTML=rankHtml(group('utm_term'));
+  // Códigos
+  document.getElementById('an-codes').innerHTML=rankHtml(group('sales_code'));
+
+  // Top Tickets
+  const tix={};
+  vendas.forEach(e=>{const k='R$'+(e.valor||0).toFixed(2);if(!tix[k])tix[k]={count:0,total:0};tix[k].count++;tix[k].total+=e.valor||0;});
+  const maxTix=Math.max(...Object.values(tix).map(v=>v.count),1);
+  document.getElementById('an-tickets').innerHTML=Object.entries(tix).sort((a,b)=>b[1].count-a[1].count).slice(0,5).map(([k,v])=>
+    `<div class="txn" style="gap:8px"><div style="font-size:13px;font-weight:800;color:var(--cyan);font-family:monospace;width:70px;flex-shrink:0">${k}</div><div style="flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:${(v.count/maxTix*100).toFixed(0)}%;background:linear-gradient(90deg,var(--cyan),#7c3aed);border-radius:3px"></div></div><div style="font-size:12px;font-weight:700;color:var(--text2);width:24px;text-align:right">${v.count}×</div></div>`
+  ).join('')||'<div class="txn-empty">Sem dados</div>';
+
+  // Funil
+  const leads=d.leads||0;
+  const pix=d.pendingCount||0;
+  const sales=vendas.length;
+  document.getElementById('an-fn-leads').textContent=leads;
+  document.getElementById('an-fn-pix').textContent=pix;
+  document.getElementById('an-fn-sales').textContent=sales;
+  document.getElementById('an-fn-r1').textContent=pct(pix,leads);
+  document.getElementById('an-fn-r2').textContent=pct(sales,pix);
+  document.getElementById('an-fn-r3').textContent=pct(sales,leads);
+
+  // LTV por lead_id
+  const byLead={};
+  vendas.filter(e=>e.lead_id).forEach(e=>{if(!byLead[e.lead_id])byLead[e.lead_id]={count:0,total:0};byLead[e.lead_id].count++;byLead[e.lead_id].total+=e.valor||0;});
+  const buyers=Object.values(byLead);
+  const ltv=buyers.length?buyers.reduce((s,b)=>s+b.total,0)/buyers.length:0;
+  const vpu=buyers.length?buyers.reduce((s,b)=>s+b.count,0)/buyers.length:0;
+  document.getElementById('an-ltv').textContent='R$'+ltv.toFixed(2);
+  document.getElementById('an-vpu').textContent=vpu.toFixed(1)+'×';
+
+  // Remarketing vs novos
+  const remarketing=vendas.filter(e=>e.payment_type==='remarketing').length;
+  const newBuyers=vendas.length-remarketing;
+  document.getElementById('an-remarketing').textContent=remarketing;
+  document.getElementById('an-remarketing-pct').textContent=pct(remarketing,vendas.length)+' das vendas';
+  document.getElementById('an-new-buyers').textContent=newBuyers;
+  document.getElementById('an-new-buyers-pct').textContent=pct(newBuyers,vendas.length)+' das vendas';
+}
+
+// ── Sales Codes ───────────────────────────────────────────────────────────────
+function renderSalesCodes(E){
+  const vendas=E.filter(e=>e.tipo==='faturamento'&&e.sales_code);
+  const panel=document.getElementById('sales-code-panel');
+  if(!vendas.length){panel.style.display='none';return}
+  panel.style.display='';
+  const map={};
+  vendas.forEach(e=>{
+    if(!map[e.sales_code])map[e.sales_code]={count:0,total:0,flow:e.flow_name||''};
+    map[e.sales_code].count++;
+    map[e.sales_code].total+=e.valor;
+  });
+  const codes=Object.entries(map).sort((a,b)=>b[1].total-a[1].total);
+  document.getElementById('sc-total-badge').textContent=codes.length+' código'+(codes.length!==1?'s':'');
+  document.getElementById('sc-list').innerHTML=codes.map(([code,v])=>
+    `<div class="txn"><div class="t-ico in" style="font-size:10px;font-weight:700">${v.count}x</div><div style="flex:1;min-width:0"><div class="t-name" style="color:var(--amber)">${code}</div><div class="t-meta">${v.flow||'—'}</div></div><div class="t-amt pos">+${fmt(v.total)}</div></div>`
+  ).join('');
 }
 
 // ── Chart ─────────────────────────────────────────────────────────────────────
